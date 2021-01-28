@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom';
 
 function App() {
 	let [framesStore, setFramesStore] = useState([]); // what we're going to use to hold our set of frames
+	let [width, height] = [640, 480];
 	let brushSize = 10;
 	let canvasRef = useRef(null);
 	let mouseDown = false;
@@ -11,14 +12,17 @@ function App() {
 	let color = '#000000';
 
 	useEffect(()=>{
-		clearFrame()
+		clearFrame();
+		canvasRef.current.addEventListener('wheel', e=>e.preventDefault()) // prevent scroll behavior on brush resize
 	},[])
 
 	function saveFrame() {
-		let ctx = canvasRef.current.getContext('2d');
-		setFramesStore([...framesStore, ctx.getImageData(0, 0, 640, 480)])
-		// framesStore.push(ctx.getImageData(0, 0, 640, 480));
-		console.log(framesStore);
+		if (imageData !== null) {
+			let ctx = canvasRef.current.getContext('2d');
+			ctx.putImageData(imageData, 0, 0)
+		}
+		let src = canvasRef.current.toDataURL();
+		setFramesStore([...framesStore, src])
 	}
 	function drawBrush(canvasRef, x, y) {
 		let ctx = canvasRef.current.getContext('2d');
@@ -47,7 +51,6 @@ function App() {
 		drawBrush(canvasRef, e.clientX, e.clientY)
 	}
 
-
 	function canvasMouseDown(e) {
 		mouseDown = true;
 		drawBrush(canvasRef, e.clientX, e.clientY)
@@ -56,13 +59,13 @@ function App() {
 	function canvasMouseMove(e) {
 		let ctx = canvasRef.current.getContext('2d');
 		if (imageData === null) {
-			imageData = ctx.getImageData(0, 0, 600, 480);
+			imageData = ctx.getImageData(0, 0, width, height);
 		} else {
 			ctx.putImageData(imageData, 0, 0)
 		}
 		if (mouseDown) {
 			drawBrush(canvasRef, e.clientX, e.clientY)
-			imageData = ctx.getImageData(0, 0, 600, 480);
+			imageData = ctx.getImageData(0, 0, width, height);
 		} else {
 			// draw a "phantom" rectangle showing where the outlines of the brush would be
 			drawPhantomBrush(canvasRef, e.clientX, e.clientY);
@@ -73,8 +76,9 @@ function App() {
 	}
 	function changeBrushSize(e) {
 		// increase or decrease brush size with mouse wheel movement
+		e.preventDefault();
+		e.stopPropagation();
 		let ctx = canvasRef.current.getContext('2d');
-		console.log(e)
 		let delta = e.deltaY;
 		if (delta > 0) {
 			brushSize -= 1;
@@ -86,7 +90,7 @@ function App() {
 		if (imageData !== null) {
 			ctx.putImageData(imageData, 0, 0)
 		} else {
-			imageData = ctx.getImageData(0, 0, 600, 480);
+			imageData = ctx.getImageData(0, 0, width, height);
 		}
 		drawPhantomBrush(canvasRef, e.clientX, e.clientY);
 	}
@@ -94,33 +98,57 @@ function App() {
 		console.log(e.target.value);
 		color = e.target.value;
 	}
+
 	function clearFrame() {
 		let ctx = canvasRef.current.getContext('2d');
 		ctx.save()
 		ctx.fillStyle = '#ffffff'
-		ctx.fillRect(0, 0, 600, 480)
+		ctx.fillRect(0, 0, width, height)
 		ctx.restore()
-		imageData = ctx.getImageData(0, 0, 600, 480);
+		imageData = ctx.getImageData(0, 0, width, height);
 	}
-	/*
-	let previews = framesStore.map((f, i)=>{
-		let src = canvasRef.current.toDataURL("image/png");
-		return <img src={src} key={i}/>
+
+	function exportAnimation() {
+		fetch('/export', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(framesStore)
+		})
+		.then(r=>r.json())
+		.then(json=>console.log(json))
+	}
+	
+	let previews = framesStore.map((src, i)=>{
+		// scale appropriately
+		return (
+			<div key={i} className="frame-preview">
+				<img src={src} width={width/8} height={height/8}/>
+				<p>Frame {i}</p>
+			</div>
+		)
 	})
-	*/
+
 	return (<div id="app">
-		<canvas 
-			onClick={canvasClick} 
-			onMouseDown={canvasMouseDown}
-			onMouseMove={canvasMouseMove}
-			onMouseUp={canvasMouseUp}
-			onWheel={changeBrushSize}
-			ref={canvasRef} id="active-frame" width="600" height="480">
-		</canvas>
-		<div id="controls">
-			<button onClick={clearFrame}>Clear</button>
-			<button onClick={saveFrame}>Save Frame</button>
-			<input onChange={changeColor} type="color"/>
+		<div id="drawing-board">
+			<canvas 
+				onClick={canvasClick} 
+				onMouseDown={canvasMouseDown}
+				onMouseMove={canvasMouseMove}
+				onMouseUp={canvasMouseUp}
+				onWheel={changeBrushSize}
+				ref={canvasRef} id="active-frame" width={width} height={height}>
+			</canvas>
+			<div id="controls">
+				<button onClick={clearFrame}>Clear</button>
+				<button onClick={saveFrame}>Save Frame</button>
+				<button onClick={exportAnimation}>Export</button>
+				<input onChange={changeColor} type="color"/>
+			</div>
+		</div>
+		<div id="previews">
+			{previews}
 		</div>
 	</div>)
 }
