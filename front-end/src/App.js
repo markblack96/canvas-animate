@@ -1,16 +1,24 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 
 
 function App() {
-	let framesStore = []; // what we're going to use to hold our set of frames
+	let [framesStore, setFramesStore] = useState([]); // what we're going to use to hold our set of frames
 	let brushSize = 10;
 	let canvasRef = useRef(null);
-	let currentFrame = null;
+	let mouseDown = false;
+	let imageData = null;
+	let color = '#000000';
+
+	useEffect(()=>{
+		clearFrame()
+	},[])
 
 	function saveFrame() {
 		let ctx = canvasRef.current.getContext('2d');
-		console.log(ctx.imageData);
+		setFramesStore([...framesStore, ctx.getImageData(0, 0, 640, 480)])
+		// framesStore.push(ctx.getImageData(0, 0, 640, 480));
+		console.log(framesStore);
 	}
 	function drawBrush(canvasRef, x, y) {
 		let ctx = canvasRef.current.getContext('2d');
@@ -22,6 +30,7 @@ function App() {
 		let boundingClientRect = canvasRef.current.getBoundingClientRect();
 		x -= boundingClientRect.left;
 		y -= boundingClientRect.top;
+		ctx.fillStyle = color;
 		ctx.fillRect(x-offset, y-offset, brushSize, brushSize);
 	}
 	function drawPhantomBrush(canvasRef, x, y) {
@@ -38,13 +47,11 @@ function App() {
 		drawBrush(canvasRef, e.clientX, e.clientY)
 	}
 
-	let mouseDown = false;
 
 	function canvasMouseDown(e) {
 		mouseDown = true;
 		drawBrush(canvasRef, e.clientX, e.clientY)
 	}
-	let imageData = null;
 
 	function canvasMouseMove(e) {
 		let ctx = canvasRef.current.getContext('2d');
@@ -53,7 +60,6 @@ function App() {
 		} else {
 			ctx.putImageData(imageData, 0, 0)
 		}
-		console.log(imageData)
 		if (mouseDown) {
 			drawBrush(canvasRef, e.clientX, e.clientY)
 			imageData = ctx.getImageData(0, 0, 600, 480);
@@ -67,6 +73,7 @@ function App() {
 	}
 	function changeBrushSize(e) {
 		// increase or decrease brush size with mouse wheel movement
+		let ctx = canvasRef.current.getContext('2d');
 		console.log(e)
 		let delta = e.deltaY;
 		if (delta > 0) {
@@ -75,18 +82,47 @@ function App() {
 			// assume delta was < 0
 			brushSize += 1;
 		}
+
+		if (imageData !== null) {
+			ctx.putImageData(imageData, 0, 0)
+		} else {
+			imageData = ctx.getImageData(0, 0, 600, 480);
+		}
+		drawPhantomBrush(canvasRef, e.clientX, e.clientY);
 	}
-	console.log("The thing ran");
-	return (<>
+	function changeColor(e) {
+		console.log(e.target.value);
+		color = e.target.value;
+	}
+	function clearFrame() {
+		let ctx = canvasRef.current.getContext('2d');
+		ctx.save()
+		ctx.fillStyle = '#ffffff'
+		ctx.fillRect(0, 0, 600, 480)
+		ctx.restore()
+		imageData = ctx.getImageData(0, 0, 600, 480);
+	}
+	/*
+	let previews = framesStore.map((f, i)=>{
+		let src = canvasRef.current.toDataURL("image/png");
+		return <img src={src} key={i}/>
+	})
+	*/
+	return (<div id="app">
 		<canvas 
 			onClick={canvasClick} 
 			onMouseDown={canvasMouseDown}
 			onMouseMove={canvasMouseMove}
 			onMouseUp={canvasMouseUp}
 			onWheel={changeBrushSize}
-			ref={canvasRef} id="active-frame" width="600" height="480"></canvas>
-		<button onClick={saveFrame}>Save Frame</button>
-	</>)
+			ref={canvasRef} id="active-frame" width="600" height="480">
+		</canvas>
+		<div id="controls">
+			<button onClick={clearFrame}>Clear</button>
+			<button onClick={saveFrame}>Save Frame</button>
+			<input onChange={changeColor} type="color"/>
+		</div>
+	</div>)
 }
 
 ReactDOM.render(
