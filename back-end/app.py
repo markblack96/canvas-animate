@@ -1,6 +1,6 @@
 import bottle
 from bottle import route, static_file, request, run
-from base64 import b64decode
+from base64 import b64decode, b64encode
 import imageio
 import json
 
@@ -19,8 +19,9 @@ def export():
         frames.append(imageio.imread(img_bytes))
     
     imageio.mimsave('./test.gif', frames)
-
-    return json.dumps(dict(data=gif_byte_string))
+    # 'data:image/gif;base64,'
+    encoded = b64encode(open('./test.gif', 'rb').read())
+    return dict(data='data:image/gif;base64,'+str(encoded)[2:-1])
 
 @route('/js/<filename>')
 def static(filename):

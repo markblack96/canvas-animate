@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-
+import ImageOutput from './ImageOutput';
 
 function App() {
 	let [framesStore, setFramesStore] = useState([]); // what we're going to use to hold our set of frames
+	let [exportedImageSrc, setExportedImageSrc] = useState(null);
 	let [width, height] = [640, 480];
 	let brushSize = 10;
 	let canvasRef = useRef(null);
@@ -117,7 +118,10 @@ function App() {
 			body: JSON.stringify(framesStore)
 		})
 		.then(r=>r.json())
-		.then(json=>console.log(json))
+		.then(json=>{
+			let src = json.data;
+			setExportedImageSrc(src);
+		})
 	}
 	
 	let previews = framesStore.map((src, i)=>{
@@ -150,6 +154,9 @@ function App() {
 		<div id="previews">
 			{previews}
 		</div>
+		{exportedImageSrc !== null && 
+		<ImageOutput src={exportedImageSrc}/>
+		}
 	</div>)
 }
 
