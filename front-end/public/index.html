@@ -62,6 +62,14 @@
     }
     div.frame-preview {
         display: flex;
+
+    }
+    div.frame-preview:hover {
+        background-color: #ddd;
+        cursor: pointer;
+    }
+    div.active {
+        border: 1px dashed black;
     }
     div#previews {
         width: 20vw;
@@ -85,8 +93,8 @@
 </style>
 <div id="container">
     <h1>Fnord Flipbook</h1>
-    <p>Use the brush to draw an image to the frame. Saving a frame adds it to the frame stack.</p>
-    <p>Use the 'Export' button to output the contents of the flipbook to an animated gif!</p>
+    <p>Use the brush to draw an image to the frame. Save frames with the "Save Frame" button. Saved frames appear in the frame previews to the right of the active drawing frame.</p>
+    <p>Use the 'Export' button to output the contents of the flipbook to an animated GIF!</p>
     <div id="root">
     </div>
     <div id="footer">

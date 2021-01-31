@@ -6,11 +6,12 @@ function App() {
 	let [framesStore, setFramesStore] = useState([]); // what we're going to use to hold our set of frames
 	let [exportedImageSrc, setExportedImageSrc] = useState(null);
 	let [width, height] = [640, 480];
-	let brushSize = 10;
+	let [brushSize, setBrushSize] = useState(10);
 	let canvasRef = useRef(null);
-	let mouseDown = false;
-	let imageData = null;
-	let color = '#000000';
+	let [mouseDown, setMouseDown] = useState(false);
+	let [imageData, setImageData] = useState(null);
+	let [color, setColor] = useState('#000000');
+	let [activeFrame, setActiveFrame] = useState(0);
 
 	useEffect(()=>{
 		clearFrame();
@@ -23,7 +24,11 @@ function App() {
 			ctx.putImageData(imageData, 0, 0)
 		}
 		let src = canvasRef.current.toDataURL();
-		setFramesStore([...framesStore, src])
+		frames = framesStore;
+		frames[activeFrame] = src;
+		setFramesStore(frames)
+		setActiveFrame(framesStore.length);
+		// setFramesStore([...framesStore, src])
 	}
 	function drawBrush(canvasRef, x, y) {
 		let ctx = canvasRef.current.getContext('2d');
@@ -53,27 +58,27 @@ function App() {
 	}
 
 	function canvasMouseDown(e) {
-		mouseDown = true;
+		setMouseDown(true);
 		drawBrush(canvasRef, e.clientX, e.clientY)
 	}
 
 	function canvasMouseMove(e) {
 		let ctx = canvasRef.current.getContext('2d');
 		if (imageData === null) {
-			imageData = ctx.getImageData(0, 0, width, height);
+			setImageData(ctx.getImageData(0, 0, width, height));
 		} else {
 			ctx.putImageData(imageData, 0, 0)
 		}
 		if (mouseDown) {
 			drawBrush(canvasRef, e.clientX, e.clientY)
-			imageData = ctx.getImageData(0, 0, width, height);
+			setImageData(ctx.getImageData(0, 0, width, height));
 		} else {
 			// draw a "phantom" rectangle showing where the outlines of the brush would be
 			drawPhantomBrush(canvasRef, e.clientX, e.clientY);
 		}
 	}
 	function canvasMouseUp(e) {
-		mouseDown = false;
+		setMouseDown(false);
 	}
 	function changeBrushSize(e) {
 		// increase or decrease brush size with mouse wheel movement
@@ -82,22 +87,22 @@ function App() {
 		let ctx = canvasRef.current.getContext('2d');
 		let delta = e.deltaY;
 		if (delta > 0) {
-			brushSize -= 1;
+			setBrushSize(brushSize -= 1);
 		} else {
 			// assume delta was < 0
-			brushSize += 1;
+			setBrushSize(brushSize += 1);
 		}
 
 		if (imageData !== null) {
 			ctx.putImageData(imageData, 0, 0)
 		} else {
-			imageData = ctx.getImageData(0, 0, width, height);
+			setImageData(ctx.getImageData(0, 0, width, height));
 		}
 		drawPhantomBrush(canvasRef, e.clientX, e.clientY);
 	}
 	function changeColor(e) {
 		console.log(e.target.value);
-		color = e.target.value;
+		setColor(e.target.value);
 	}
 
 	function clearFrame() {
@@ -106,7 +111,7 @@ function App() {
 		ctx.fillStyle = '#ffffff'
 		ctx.fillRect(0, 0, width, height)
 		ctx.restore()
-		imageData = ctx.getImageData(0, 0, width, height);
+		setImageData(ctx.getImageData(0, 0, width, height));
 	}
 
 	function exportAnimation() {
@@ -123,13 +128,23 @@ function App() {
 			setExportedImageSrc(src);
 		})
 	}
-	
+	function previewClick(e) {
+		let frameNumber = e.target.getAttribute('data-key');
+		console.log(frameNumber)
+		setActiveFrame(parseInt(frameNumber))
+		let ctx = canvasRef.current.getContext('2d');
+		let temp = new Image();
+		temp.src = framesStore[parseInt(frameNumber)];
+		ctx.drawImage(temp, 0, 0)
+		setImageData(ctx.getImageData(0, 0, width, height))
+		temp.remove()
+	} 
 	let previews = framesStore.map((src, i)=>{
 		// scale appropriately
 		return (
-			<div key={i} className="frame-preview">
-				<img src={src} width={width/8} height={height/8}/>
-				<p>Frame {i}</p>
+			<div key={i} data-key={i} className={`frame-preview ${activeFrame === i ? 'active' : null}`} onClick={previewClick}>
+				<img data-key={i} src={src} width={width/8} height={height/8}/>
+				<p data-key={i}>Frame {i}</p>
 			</div>
 		)
 	})
@@ -142,6 +157,7 @@ function App() {
 				onMouseMove={canvasMouseMove}
 				onMouseUp={canvasMouseUp}
 				onWheel={changeBrushSize}
+				onMouseOut={()=>{setMouseDown(false)}}
 				ref={canvasRef} id="active-frame" width={width} height={height}>
 			</canvas>
 			<div id="controls">
@@ -152,6 +168,7 @@ function App() {
 			</div>
 		</div>
 		<div id="previews">
+			Frames:
 			{previews}
 		</div>
 		{exportedImageSrc !== null && 
